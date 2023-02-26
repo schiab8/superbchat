@@ -46,6 +46,10 @@ var smtpUser string = "example@purelymail.com"
 var smtpPass string = "[y7EQ(xgTW_~{CUpPhO6(#"
 var sendTo = []string{"example@purelymail.com"} // Comma separated recipient list
 
+// Moderation settings
+var BlacklistedWords []string = []string{}
+var CensoredWords []string = []string{}
+
 var indexTemplate *template.Template
 var payTemplate *template.Template
 var checkTemplate *template.Template
@@ -68,6 +72,8 @@ type configJson struct {
 	SMTPUser         string   `json:"SMTPUser"`
 	SMTPPass         string   `json:"SMTPPass"`
 	SendToEmail      []string `json:"SendToEmail"`
+	BlacklistedWords []string `json:"BlacklistedWords"` // dont show if string in list
+	CensoredWords    []string `json:"CensoredWords"`    // censor (*****) if string in list
 }
 
 type checkPage struct {
@@ -163,6 +169,8 @@ func main() {
 	smtpUser = conf.SMTPUser
 	smtpPass = conf.SMTPPass
 	sendTo = conf.SendToEmail
+	BlacklistedWords = conf.BlacklistedWords
+	CensoredWords = conf.CensoredWords
 	if conf.Checked == true {
 		checked = " checked"
 	}
@@ -215,7 +223,6 @@ func main() {
 	}
 	err = http.ListenAndServe(":"+port, nil)
 	if err != nil {
-		fmt.Println("rompio aca")
 		panic(err)
 	}
 
@@ -533,57 +540,76 @@ func topwidgetHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func alertHandler(w http.ResponseWriter, r *http.Request) {
-	var v csvLog
-	v.Refresh = AlertWidgetRefreshInterval
-	if r.FormValue("auth") == password {
-
-		csvFile, err := os.Open("log/alertqueue.csv")
-		if err != nil {
-			fmt.Println(err)
-		}
-
-		csvLines, err := csv.NewReader(csvFile).ReadAll()
-		if err != nil {
-			fmt.Println(err)
-		}
-		defer func(csvFile *os.File) {
-			err := csvFile.Close()
-			if err != nil {
-				fmt.Println(err)
-			}
-		}(csvFile)
-
-		// Remove top line of CSV file after displaying it
-		if csvLines != nil {
-			popFile, _ := os.OpenFile("log/alertqueue.csv", os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
-			popFirst := csvLines[1:]
-			w := csv.NewWriter(popFile)
-			err := w.WriteAll(popFirst)
-			if err != nil {
-				fmt.Println(err)
-			}
-			defer func(popFile *os.File) {
-				err := popFile.Close()
-				if err != nil {
-					fmt.Println(err)
-				}
-			}(popFile)
-			v.ID = csvLines[0][0]
-			v.Name = csvLines[0][1]
-			v.Message = csvLines[0][2]
-			v.Amount = csvLines[0][3]
-			v.DisplayToggle = ""
-		} else {
-			v.DisplayToggle = "display: none;"
-		}
-	} else {
+	if r.FormValue("auth") != password {
 		w.WriteHeader(http.StatusUnauthorized)
 		return // return http 401 unauthorized error
 	}
-	err := alertTemplate.Execute(w, v)
+
+	var v csvLog
+	v.Refresh = AlertWidgetRefreshInterval
+
+	csvFile, err := os.Open("log/alertqueue.csv")
 	if err != nil {
 		fmt.Println(err)
 	}
+
+	csvLines, err := csv.NewReader(csvFile).ReadAll()
+	if err != nil {
+		fmt.Println(err)
+	}
+	defer func(csvFile *os.File) {
+		err := csvFile.Close()
+		if err != nil {
+			fmt.Println(err)
+		}
+	}(csvFile)
+
+	// Remove top line of CSV file after displaying it
+	if csvLines != nil {
+		popFile, _ := os.OpenFile("log/alertqueue.csv", os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
+		popFirst := csvLines[1:]
+		w := csv.NewWriter(popFile)
+		err := w.WriteAll(popFirst)
+		if err != nil {
+			fmt.Println(err)
+		}
+		defer func(popFile *os.File) {
+			err := popFile.Close()
+			if err != nil {
+				fmt.Println(err)
+			}
+		}(popFile)
+		v.ID = csvLines[0][0]
+		v.Name = moderate(csvLines[0][1])
+		v.Message = moderate(csvLines[0][2])
+		v.Amount = csvLines[0][3]
+		v.DisplayToggle = ""
+	} else {
+		v.DisplayToggle = "display: none;"
+	}
+
+	err = alertTemplate.Execute(w, v)
+	if err != nil {
+		fmt.Println(err)
+	}
+}
+
+func moderate(text string) string {
+	for _, term := range BlacklistedWords {
+		if strings.Contains(text, term) {
+			fmt.Println("Blacklisted text:", text)
+			return ""
+		}
+	}
+
+	for _, term := range CensoredWords {
+		if strings.Contains(text, term) {
+			text = strings.ReplaceAll(text, term, strings.Repeat("*", len(term)))
+			fmt.Println("Censored term: ", term, " - Original text: '", text)
+		}
+	}
+
+	return text
 }
 
 func paymentHandler(w http.ResponseWriter, r *http.Request) {

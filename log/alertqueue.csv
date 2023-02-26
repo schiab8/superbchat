@@ -8,3 +8,7 @@ a4812c001fdaf427a0aca956897cfe30458a8a11c0b80ed0f5e4fd90424e9cc5,Anonymous,⠀,0
 "649b7de06f86fd4c7ab3295d007b744a0409ec1259c776159d7feca5106f8cb8","Rafus","asd asd asd asd asd a","0.0012"
 "a72d073be63a406456320768cf4b400235140632ce70af454e90d638371da129","MiltonR","un monton","0.0017"
 "58fbd32ec60cfd384bd3a601d175692205af96d9a8ebe67de12c939c68e4fef5","Anonymous","⠀","0.001"
+mockpayment1,Anonymous,censor_this,0.001
+mockpayment2,Anonymous,blacklist_this floor⠀,0.001
+mockpayment3,Anonymous,should be hidden censor_this blacklist_this2⠀,0.001
+mockpayment4,Anonymous,this should be censored -> censor_this2 <- this should be censored,0.001

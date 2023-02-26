@@ -14,5 +14,7 @@
   "SMTPPass": "123456789",
   "SendToEmail": [
     "example@purelymail.com"
-  ]
+  ],
+  "BlacklistedWords": ["blacklist_this", "blacklist_this2"],
+  "CensoredWords": ["censor_this", "censor_this2"]
 }
